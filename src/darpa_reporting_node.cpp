@@ -34,7 +34,7 @@ void mapRelayCallback(const sensor_msgs::PointCloud2& cloudMsg)
     try
     {
         mapToDarpa = PointMatcher_ros::transformListenerToEigenMatrix<float>(
-            *tfListener, params->darpaFrame, params->mapFrame, cloudMsg.header.stamp);
+            *tfListener, params->darpaFrame, cloudMsg.header.frame_id, cloudMsg.header.stamp);
     }
     catch (const tf::TransformException& ex)
     {
@@ -77,19 +77,18 @@ void posesPublisherLoop()
     while (ros::ok())
     {
         posesPublishRate.sleep();
-        ros::Time stamp(ros::Time::now());
-        poses.header.stamp = stamp;
+        poses.poses.clear();
+        poses.header.stamp = ros::Time::now();
 
         for (const auto& robotFrame : params->robotFrames)
         {
             tf::StampedTransform tf;
-            tfListener->waitForTransform(params->darpaFrame, robotFrame, stamp, ros::Duration(0.1));
 
             try
             {
-                tfListener->lookupTransform(params->darpaFrame, robotFrame, stamp, tf);
+                tfListener->lookupTransform(params->darpaFrame, robotFrame, ros::Time(0), tf);
             }
-            catch (const tf::ExtrapolationException& ex)
+            catch (const tf::TransformException& ex)
             {
                 ROS_WARN("%s", ex.what());
                 return;
@@ -110,7 +109,6 @@ void posesPublisherLoop()
         }
 
         posesPublisher.publish(poses);
-        poses.poses.clear();
     }
 }
 

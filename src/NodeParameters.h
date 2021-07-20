@@ -13,7 +13,6 @@ class NodeParameters
 
     std::vector<std::string> robotFrames;
     std::string darpaFrame;
-    std::string mapFrame;
     std::string mapTopic;
     std::string mapPublishTopic;
     std::string posesPublishTopic;
