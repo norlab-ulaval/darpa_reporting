@@ -13,8 +13,6 @@
 #include <sensor_msgs/PointCloud2.h>
 #include <tf2_geometry_msgs/tf2_geometry_msgs.h>
 #include <tf2_ros/transform_listener.h>
-#include <visualization_msgs/Marker.h>
-#include <visualization_msgs/MarkerArray.h>
 
 typedef PointMatcher<float> PM;
 
@@ -35,8 +33,10 @@ void mapRelayCallback(const sensor_msgs::PointCloud2& cloudMsg)
 
     try
     {
-        tf = tfBuffer->lookupTransform(
-            params->darpaFrame, params->mapFrame, cloudMsg.header.stamp, ros::Duration(0.1));
+        tf = tfBuffer->lookupTransform(params->darpaFrame,
+                                       cloudMsg.header.frame_id,
+                                       cloudMsg.header.stamp,
+                                       ros::Duration(0.1));
     }
     catch (const tf2::TransformException& ex)
     {
@@ -81,7 +81,8 @@ void posesPublisherLoop()
     while (ros::ok())
     {
         posesPublishRate.sleep();
-        ros::Time stamp(ros::Time::now());
+        poses.poses.clear();
+        poses.header.stamp = ros::Time::now();
 
         for (const auto& robotFrame : params->robotFrames)
         {
@@ -90,7 +91,7 @@ void posesPublisherLoop()
             try
             {
                 tf = tfBuffer->lookupTransform(
-                    params->darpaFrame, robotFrame, stamp, ros::Duration(0.1));
+                    params->darpaFrame, robotFrame, ros::Time(0), ros::Duration(0.1));
             }
             catch (const tf2::TransformException& ex)
             {
@@ -103,12 +104,9 @@ void posesPublisherLoop()
             geometry_msgs::Pose pose;
             tf2::toMsg(t, pose);
 
-            poses.header.stamp = ros::Time::now();
             poses.poses.push_back(pose);
         }
-
         posesPublisher.publish(poses);
-        poses.poses.clear();
     }
 }
 
@@ -133,8 +131,7 @@ int main(int argc, char** argv)
     std::thread mapPublisherThread(mapPublisherLoop);
     std::thread posePublisherThread(posesPublisherLoop);
 
-    ros::MultiThreadedSpinner spinner;
-    spinner.spin();
+    ros::spin();
 
     mapPublisherThread.join();
     posePublisherThread.join();

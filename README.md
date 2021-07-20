@@ -4,17 +4,16 @@ A ROS node to transform and publish the map point cloud and the robots poses int
 
 ## Node parameters
 
-|        Name         |                         Description                         | Possible values  | Default Value |
-| :-----------------: | :---------------------------------------------------------: | :--------------: | :-----------: |
-|    robot_frames     |              The list for the robots frame id.              | A list of string | "[base_link]" |
-|     darpa_frame     |                 The DARPA reference frame.                  |    Any string    |    "darpa"    |
-|      map_frame      |                  The map reference frame.                   |    Any string    |     "map"     |
-|      map_topic      |            The topic to subscribed for the map.             |    Any string    |     "map"     |
-|  map_publish_topic  |          The topic on which the map is published.           |    Any string    |  "map_relay"  |
-| poses_publish_topic |         The topic on which the poses is published.          |    Any string    | "poses_relay" |
-|  map_publish_rate   |  The rate at which the map is published (must be < 1 Hz).   |      [0,1]       |      0.1      |
-| poses_publish_rate  | The rate at which the poses are published (must be < 1 Hz). |      [0,1]       |      0.1      |
-| transform_dimension |        Homogeneous dimension of the transformation.         |      {3,4}       |       4       |
+|        Name         |                 Description                  | Possible values  | Default Value |
+| :-----------------: | :------------------------------------------: | :--------------: | :-----------: |
+|    robot_frames     |      The list for the robots frame id.       | A list of string | "[base_link]" |
+|     darpa_frame     |          The DARPA reference frame.          |    Any string    |    "darpa"    |
+|      map_topic      |     The topic to subscribed for the map.     |    Any string    |     "map"     |
+|  map_publish_topic  |   The topic on which the map is published.   |    Any string    |  "map_relay"  |
+| poses_publish_topic |  The topic on which the poses is published.  |    Any string    | "poses_relay" |
+|  map_publish_rate   |   The rate at which the map is published.    |      [0,1]       |      0.1      |
+| poses_publish_rate  |  The rate at which the poses are published.  |      [0,1]       |       1       |
+| transform_dimension | Homogeneous dimension of the transformation. |      {3,4}       |       4       |
 
 ## Testing
 

@@ -9,7 +9,6 @@ void NodeParameters::retrieveParameters(const ros::NodeHandle& nodeHandle)
 {
     nodeHandle.getParam("robot_frames", robotFrames);
     nodeHandle.param<std::string>("darpa_frame", darpaFrame, "darpa");
-    nodeHandle.param<std::string>("map_frame", mapFrame, "map");
     nodeHandle.param<std::string>("map_topic", mapTopic, "map");
     nodeHandle.param<std::string>("map_publish_topic", mapPublishTopic, "map_relay");
     nodeHandle.param<std::string>("poses_publish_topic", posesPublishTopic, "poses_relay");
