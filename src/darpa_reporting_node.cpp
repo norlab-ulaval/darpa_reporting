@@ -8,13 +8,11 @@
 #include <geometry_msgs/PoseArray.h>
 #include <geometry_msgs/Quaternion.h>
 #include <geometry_msgs/Vector3.h>
-#include <pointmatcher_ros/PointMatcher_ROS.h>
+#include <pointmatcher_ros/point_cloud.h>
+#include <pointmatcher_ros/transform.h>
 #include <ros/ros.h>
 #include <sensor_msgs/PointCloud2.h>
-#include <tf2_geometry_msgs/tf2_geometry_msgs.h>
-#include <tf2_ros/transform_listener.h>
-#include <visualization_msgs/Marker.h>
-#include <visualization_msgs/MarkerArray.h>
+#include <tf/transform_listener.h>
 
 typedef PointMatcher<float> PM;
 
@@ -26,32 +24,30 @@ ros::Publisher posesPublisher;
 std::mutex mapLock;
 std::shared_ptr<PM::Transformation> transformation;
 std::unique_ptr<NodeParameters> params;
-std::unique_ptr<tf2_ros::Buffer> tfBuffer;
+std::unique_ptr<tf::TransformListener> tfListener;
 
 void mapRelayCallback(const sensor_msgs::PointCloud2& cloudMsg)
 {
     isMapReady = false;
-    geometry_msgs::TransformStamped tf;
+    PM::TransformationParameters mapToDarpa;
 
     try
     {
-        tf = tfBuffer->lookupTransform(
-            params->darpaFrame, params->mapFrame, cloudMsg.header.stamp, ros::Duration(0.1));
+        mapToDarpa = PointMatcher_ros::transformListenerToEigenMatrix<float>(
+            *tfListener, params->darpaFrame, params->mapFrame, cloudMsg.header.stamp);
     }
-    catch (const tf2::TransformException& ex)
+    catch (const tf::TransformException& ex)
     {
         ROS_WARN("%s", ex.what());
         return;
     }
 
-    PM::TransformationParameters mapToDarpa =
-        PointMatcher_ROS::rosTfToPointMatcherTransformation<float>(tf, params->transformDimension);
-    PM::DataPoints cloud = PointMatcher_ROS::rosMsgToPointMatcherCloud<float>(cloudMsg);
+    PM::DataPoints cloud = PointMatcher_ros::rosMsgToPointMatcherCloud<float>(cloudMsg, true);
 
     transformation->inPlaceCompute(mapToDarpa, cloud);
 
     mapLock.lock();
-    map = PointMatcher_ROS::pointMatcherCloudToRosMsg<float>(
+    map = PointMatcher_ros::pointMatcherCloudToRosMsg<float>(
         cloud, params->darpaFrame, cloudMsg.header.stamp);
     isMapReady = true;
     mapLock.unlock();
@@ -82,28 +78,34 @@ void posesPublisherLoop()
     {
         posesPublishRate.sleep();
         ros::Time stamp(ros::Time::now());
+        poses.header.stamp = stamp;
 
         for (const auto& robotFrame : params->robotFrames)
         {
-            geometry_msgs::TransformStamped tf;
+            tf::StampedTransform tf;
+            tfListener->waitForTransform(params->darpaFrame, robotFrame, stamp, ros::Duration(0.1));
 
             try
             {
-                tf = tfBuffer->lookupTransform(
-                    params->darpaFrame, robotFrame, stamp, ros::Duration(0.1));
+                tfListener->lookupTransform(params->darpaFrame, robotFrame, stamp, tf);
             }
-            catch (const tf2::TransformException& ex)
+            catch (const tf::ExtrapolationException& ex)
             {
                 ROS_WARN("%s", ex.what());
                 return;
             }
 
-            tf2::Transform t;
-            tf2::fromMsg(tf.transform, t);
+            geometry_msgs::TransformStamped robotToDarpaTfMsg;
+            tf::transformStampedTFToMsg(tf, robotToDarpaTfMsg);
             geometry_msgs::Pose pose;
-            tf2::toMsg(t, pose);
+            pose.position.x = robotToDarpaTfMsg.transform.translation.x;
+            pose.position.y = robotToDarpaTfMsg.transform.translation.y;
+            pose.position.z = robotToDarpaTfMsg.transform.translation.z;
+            pose.orientation.x = robotToDarpaTfMsg.transform.rotation.x;
+            pose.orientation.y = robotToDarpaTfMsg.transform.rotation.y;
+            pose.orientation.z = robotToDarpaTfMsg.transform.rotation.z;
+            pose.orientation.w = robotToDarpaTfMsg.transform.rotation.w;
 
-            poses.header.stamp = ros::Time::now();
             poses.poses.push_back(pose);
         }
 
@@ -127,14 +129,12 @@ int main(int argc, char** argv)
 
     ros::Subscriber mapSubscriber(n.subscribe(params->mapTopic, 1, mapRelayCallback));
 
-    tfBuffer = std::unique_ptr<tf2_ros::Buffer>(new tf2_ros::Buffer);
-    tf2_ros::TransformListener tfListener(*tfBuffer);
+    tfListener = std::unique_ptr<tf::TransformListener>(new tf::TransformListener());
 
     std::thread mapPublisherThread(mapPublisherLoop);
     std::thread posePublisherThread(posesPublisherLoop);
 
-    ros::MultiThreadedSpinner spinner;
-    spinner.spin();
+    ros::spin();
 
     mapPublisherThread.join();
     posePublisherThread.join();
