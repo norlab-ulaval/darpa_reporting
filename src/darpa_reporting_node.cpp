@@ -28,7 +28,6 @@ std::unique_ptr<tf2_ros::Buffer> tfBuffer;
 
 void mapRelayCallback(const sensor_msgs::PointCloud2& cloudMsg)
 {
-    isMapReady = false;
     geometry_msgs::TransformStamped tf;
 
     try
@@ -65,18 +64,19 @@ void mapPublisherLoop()
     {
         mapPublishRate.sleep();
 
+        mapLock.lock();
         if (isMapReady)
         {
             mapPublisher.publish(map);
             isMapReady = false;
         }
+        mapLock.unlock();
     }
 }
 
 void posesPublisherLoop()
 {
     ros::Rate posesPublishRate(params->posesPublishRate);
-    poses.header.frame_id = params->darpaFrame;
 
     while (ros::ok())
     {
@@ -96,7 +96,7 @@ void posesPublisherLoop()
             catch (const tf2::TransformException& ex)
             {
                 ROS_WARN("%s", ex.what());
-                return;
+                break;
             }
 
             tf2::Transform t;
@@ -106,7 +106,9 @@ void posesPublisherLoop()
 
             poses.poses.push_back(pose);
         }
-        posesPublisher.publish(poses);
+
+        if (poses.poses.size() == params->robotFrames.size())
+            posesPublisher.publish(poses);
     }
 }
 
@@ -122,6 +124,9 @@ int main(int argc, char** argv)
     params = std::unique_ptr<NodeParameters>(new NodeParameters(pn));
     mapPublisher = n.advertise<sensor_msgs::PointCloud2>(params->mapPublishTopic, 1, true);
     posesPublisher = n.advertise<geometry_msgs::PoseArray>(params->posesPublishTopic, 1, true);
+
+    poses.header.frame_id = params->darpaFrame;
+    poses.poses.reserve(params->robotFrames.size());
 
     ros::Subscriber mapSubscriber(n.subscribe(params->mapTopic, 1, mapRelayCallback));
 
