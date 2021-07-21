@@ -7,6 +7,7 @@ class NodeParameters
 {
   private:
     void retrieveParameters(const ros::NodeHandle& nodeHandle);
+    void validateParameters() const;
 
   public:
     NodeParameters(ros::NodeHandle privateNodeHandle);
