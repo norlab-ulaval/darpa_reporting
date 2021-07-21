@@ -81,22 +81,21 @@ void posesPublisherLoop()
     while (ros::ok())
     {
         posesPublishRate.sleep();
-        poses.poses.clear();
         poses.header.stamp = ros::Time::now();
 
-        for (const auto& robotFrame : params->robotFrames)
+        for (auto i = 0; i < params->robotFrames.size(); ++i)
         {
             geometry_msgs::TransformStamped tf;
 
             try
             {
                 tf = tfBuffer->lookupTransform(
-                    params->darpaFrame, robotFrame, ros::Time(0), ros::Duration(0.1));
+                    params->darpaFrame, params->robotFrames[i], ros::Time(0), ros::Duration(0.1));
             }
             catch (const tf2::TransformException& ex)
             {
                 ROS_WARN("%s", ex.what());
-                break;
+                continue;
             }
 
             tf2::Transform t;
@@ -104,11 +103,9 @@ void posesPublisherLoop()
             geometry_msgs::Pose pose;
             tf2::toMsg(t, pose);
 
-            poses.poses.push_back(pose);
+            poses.poses[i] = pose;
         }
-
-        if (poses.poses.size() == params->robotFrames.size())
-            posesPublisher.publish(poses);
+        posesPublisher.publish(poses);
     }
 }
 
@@ -126,7 +123,10 @@ int main(int argc, char** argv)
     posesPublisher = n.advertise<geometry_msgs::PoseArray>(params->posesPublishTopic, 1, true);
 
     poses.header.frame_id = params->darpaFrame;
-    poses.poses.reserve(params->robotFrames.size());
+    poses.poses.assign(params->robotFrames.size(), geometry_msgs::Pose());
+
+    for (auto& pose : poses.poses)
+        pose.orientation.w = 1;
 
     ros::Subscriber mapSubscriber(n.subscribe(params->mapTopic, 1, mapRelayCallback));
 
