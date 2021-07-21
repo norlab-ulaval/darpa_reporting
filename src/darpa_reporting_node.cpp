@@ -16,7 +16,7 @@
 
 typedef PointMatcher<float> PM;
 
-std::atomic_bool isMapReady;
+bool isMapReady;
 sensor_msgs::PointCloud2 map;
 geometry_msgs::PoseArray poses;
 ros::Publisher mapPublisher;
@@ -28,7 +28,6 @@ std::unique_ptr<tf::TransformListener> tfListener;
 
 void mapRelayCallback(const sensor_msgs::PointCloud2& cloudMsg)
 {
-    isMapReady = false;
     PM::TransformationParameters mapToDarpa;
 
     try
@@ -61,13 +60,13 @@ void mapPublisherLoop()
     {
         mapPublishRate.sleep();
 
+        mapLock.lock();
         if (isMapReady)
         {
-            mapLock.lock();
             mapPublisher.publish(map);
-            mapLock.unlock();
             isMapReady = false;
         }
+        mapLock.unlock();
     }
 }
 
