@@ -77,21 +77,21 @@ void posesPublisherLoop()
     while (ros::ok())
     {
         posesPublishRate.sleep();
-        poses.poses.clear();
         poses.header.stamp = ros::Time::now();
 
-        for (const auto& robotFrame : params->robotFrames)
+        for (auto i = 0; i < params->robotFrames.size(); ++i)
         {
             tf::StampedTransform tf;
 
             try
             {
-                tfListener->lookupTransform(params->darpaFrame, robotFrame, ros::Time(0), tf);
+                tfListener->lookupTransform(
+                    params->darpaFrame, params->robotFrames[i], ros::Time(0), tf);
             }
             catch (const tf::TransformException& ex)
             {
                 ROS_WARN("%s", ex.what());
-                break;
+                continue;
             }
 
             geometry_msgs::TransformStamped robotToDarpaTfMsg;
@@ -105,11 +105,9 @@ void posesPublisherLoop()
             pose.orientation.z = robotToDarpaTfMsg.transform.rotation.z;
             pose.orientation.w = robotToDarpaTfMsg.transform.rotation.w;
 
-            poses.poses.push_back(pose);
+            poses.poses[i] = pose;
         }
-
-        if (poses.poses.size() == params->robotFrames.size())
-            posesPublisher.publish(poses);
+        posesPublisher.publish(poses);
     }
 }
 
@@ -126,12 +124,15 @@ int main(int argc, char** argv)
     mapPublisher = n.advertise<sensor_msgs::PointCloud2>(params->mapPublishTopic, 1, true);
     posesPublisher = n.advertise<geometry_msgs::PoseArray>(params->posesPublishTopic, 1, true);
 
-    poses.header.frame_id = params->darpaFrame;
-    poses.poses.reserve(params->robotFrames.size());
-
     ros::Subscriber mapSubscriber(n.subscribe(params->mapTopic, 1, mapRelayCallback));
 
     tfListener = std::unique_ptr<tf::TransformListener>(new tf::TransformListener());
+
+    poses.header.frame_id = params->darpaFrame;
+    poses.poses.assign(params->robotFrames.size(), geometry_msgs::Pose());
+
+    for (auto& pose : poses.poses)
+        pose.orientation.w = 1;
 
     std::thread mapPublisherThread(mapPublisherLoop);
     std::thread posePublisherThread(posesPublisherLoop);
