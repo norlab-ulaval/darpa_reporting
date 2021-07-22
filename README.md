@@ -19,7 +19,7 @@ A ROS node to transform and publish the map point cloud and the robots poses int
 
 To test this package, clone [this repository](https://bitbucket.org/subtchallenge/test_mapping_server/src/master/) into your catkin workspace then follow the instructions for the [`mapping_server`](https://bitbucket.org/subtchallenge/test_mapping_server/src/master/mapping_server/) and [`mapping_relay`](https://bitbucket.org/subtchallenge/test_mapping_server/src/master/mapping_relay/) packages.
 
-The number of robots in the `robot_frames` and `robot_names` lists must be the same in the `mapping_relay.launch` file and the order in both list must also match, e.g. `"robot_frames: [base_link1, base_link2, ...]", robot_names: "[robot1, robot2, ...]"`.
+The number of robots in the `robot_frames` parameter must match the number of robots in the `robot_names` parameter in the `mapping_relay.launch` file and the order in both parameters must also match, e.g. `"robot_frames: [base_link1, base_link2, ...]"` and `robot_names: "[robot1, robot2, ...]"`.
 
 Since this package is only relaying the map and the pose of the robots, everything related to occupancy grid and markers subscription can be commented out in the `mapping_relay.py` and the `mapping_relay.launch` files. The `rosbag` recording in the `mapping_server.launch` file can also be commented out if not desired.
 
