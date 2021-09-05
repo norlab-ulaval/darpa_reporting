@@ -51,10 +51,10 @@
   <buildtool_depend>catkin</buildtool_depend>
 
   <depend>geometry_msgs</depend>
-  <depend>libpointmatcher_ros</depend>
   <depend>roscpp</depend>
   <depend>sensor_msgs</depend>
   <depend>tf2_ros</depend>
+  <depend>tf2_sensor_msgs</depend>
 
   <!-- The export tag contains other, unspecified, tags -->
   <export>
