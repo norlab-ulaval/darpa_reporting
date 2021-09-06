@@ -21,7 +21,9 @@ To test this package, clone [this repository](https://bitbucket.org/subtchalleng
 
 The number of robots in the `robot_frames` parameter must match the number of robots in the `robot_names` parameter in the `mapping_relay.launch` file and the order in both parameters must also match, e.g. `"robot_frames: [base_link1, base_link2, ...]"` and `robot_names: "[robot1, robot2, ...]"`.
 
-Since this package is only relaying the map and the pose of the robots, everything related to occupancy grid and markers subscription can be commented out in the `mapping_relay.py` and the `mapping_relay.launch` files. The `rosbag` recording in the `mapping_server.launch` file can also be commented out if not desired.
+Since this package is only relaying the map and the pose of the robots, everything related to occupancy grid and markers subscription can be commented out in the `mapping_relay.py` and the `mapping_relay.launch` files.
+
+The `rosbag` recording in the `mapping_server.launch` file can also be commented out if not desired.
 
 Then, run the following commands in separated terminals:
 
@@ -31,6 +33,6 @@ Then, run the following commands in separated terminals:
 
 1. `roslaunch mapping_server mapping_server.launch`
 
-1. `roslaunch mapping_relay mapping_relay.launch`
+1. `roslaunch mapping_relay mapping_relay.launch mapping_server_ip:=0.0.0.0`
 
 1. `roslaunch darpa_reporting darpa_reporting.launch`
