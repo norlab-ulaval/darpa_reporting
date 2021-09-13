@@ -6,15 +6,12 @@
 
 #include <geometry_msgs/Pose.h>
 #include <geometry_msgs/PoseArray.h>
-#include <geometry_msgs/Quaternion.h>
-#include <geometry_msgs/Vector3.h>
-#include <pointmatcher_ros/PointMatcher_ROS.h>
 #include <ros/ros.h>
 #include <sensor_msgs/PointCloud2.h>
+#include <sensor_msgs/point_cloud2_iterator.h>
 #include <tf2_geometry_msgs/tf2_geometry_msgs.h>
 #include <tf2_ros/transform_listener.h>
-
-typedef PointMatcher<float> PM;
+#include <tf2_sensor_msgs/tf2_sensor_msgs.h>
 
 bool isMapReady;
 sensor_msgs::PointCloud2 map;
@@ -22,20 +19,30 @@ geometry_msgs::PoseArray poses;
 ros::Publisher mapPublisher;
 ros::Publisher posesPublisher;
 std::mutex mapLock;
-std::shared_ptr<PM::Transformation> transformation;
 std::unique_ptr<NodeParameters> params;
 std::unique_ptr<tf2_ros::Buffer> tfBuffer;
 
-void mapRelayCallback(const sensor_msgs::PointCloud2& cloudMsg)
+void mapRelayCallback(const sensor_msgs::PointCloud2& inputCloud)
 {
-    geometry_msgs::TransformStamped tf;
+    sensor_msgs::PointCloud2 tempCloud = inputCloud;
+    // Keep only the XYZ fields
+    sensor_msgs::PointCloud2Modifier(tempCloud).setPointCloud2Fields(3,
+        "x", 1, sensor_msgs::PointField::FLOAT32,
+        "y", 1, sensor_msgs::PointField::FLOAT32,
+        "z", 1, sensor_msgs::PointField::FLOAT32);
+
+    sensor_msgs::PointCloud2ConstIterator<float> inputCloudFields(inputCloud, "x");
+    sensor_msgs::PointCloud2Iterator<float> tempCloudFields(tempCloud, "x");
+
+    for (; inputCloudFields != inputCloudFields.end(); ++inputCloudFields, ++tempCloudFields) {
+        tempCloudFields[0] = inputCloudFields[0];  // x field
+        tempCloudFields[1] = inputCloudFields[1];  // y field
+        tempCloudFields[2] = inputCloudFields[2];  // z field
+    }
 
     try
     {
-        tf = tfBuffer->lookupTransform(params->darpaFrame,
-                                       cloudMsg.header.frame_id,
-                                       cloudMsg.header.stamp,
-                                       ros::Duration(0.1));
+        tempCloud = tfBuffer->transform(tempCloud, params->darpaFrame, ros::Duration(0.1));
     }
     catch (const tf2::TransformException& ex)
     {
@@ -43,15 +50,9 @@ void mapRelayCallback(const sensor_msgs::PointCloud2& cloudMsg)
         return;
     }
 
-    PM::TransformationParameters mapToDarpa =
-        PointMatcher_ROS::rosTfToPointMatcherTransformation<float>(tf, params->transformDimension);
-    PM::DataPoints cloud = PointMatcher_ROS::rosMsgToPointMatcherCloud<float>(cloudMsg);
-
-    transformation->inPlaceCompute(mapToDarpa, cloud);
-
     mapLock.lock();
-    map = PointMatcher_ROS::pointMatcherCloudToRosMsg<float>(
-        cloud, params->darpaFrame, cloudMsg.header.stamp);
+    map = tempCloud;
+    map.header.frame_id = params->darpaFrame;
     isMapReady = true;
     mapLock.unlock();
 }
@@ -116,7 +117,6 @@ int main(int argc, char** argv)
     ros::NodeHandle pn("~");
 
     isMapReady = false;
-    transformation = PM::get().TransformationRegistrar.create("RigidTransformation");
 
     params = std::unique_ptr<NodeParameters>(new NodeParameters(pn));
     mapPublisher = n.advertise<sensor_msgs::PointCloud2>(params->mapPublishTopic, 1, true);
